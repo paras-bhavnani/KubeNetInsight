@@ -121,6 +121,15 @@ func processEBPFData(collector *ebpf.Collector, exporter *metrics.Exporter) erro
 		return fmt.Errorf("failed to get packet counts: %v", err)
 	}
 
+	// Add this section to display metrics
+    for sourceIP, destinations := range packetCounts {
+        for destIP, count := range destinations {
+            // Just use %s for string formatting of IPs
+            log.Printf("Packets from %s to %s: %d", sourceIP, destIP, count)
+            exporter.AddNetworkTraffic(sourceIP, destIP, float64(count)*1500)
+        }
+    }
+
 	for sourceIP, destinations := range packetCounts {
 		for destIP, count := range destinations {
 			exporter.AddNetworkTraffic(sourceIP, destIP, float64(count)*1500)

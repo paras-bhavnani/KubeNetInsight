@@ -54,11 +54,13 @@ static __always_inline int process_packet(struct xdp_md *ctx, __u64 *ts) {
 
     // Update packet count
     __u64 *count = bpf_map_lookup_elem(&packet_count, &key);
-    if (count)
+    if (count) {
         __sync_fetch_and_add(count, 1);
-    else {
+        bpf_printk("Packet captured: src_ip=%u, dst_ip=%u\n", key.src_ip, key.dst_ip);
+    } else {
         __u64 initial = 1;
         bpf_map_update_elem(&packet_count, &key, &initial, BPF_ANY);
+        bpf_printk("Packet captured: src_ip=%u, dst_ip=%u\n", key.src_ip, key.dst_ip);
     }
 
     // Update latency

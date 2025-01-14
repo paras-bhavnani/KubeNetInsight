@@ -1,5 +1,5 @@
 CLANG ?= clang
-CFLAGS := -O2 -g -Wall -Werror $(CFLAGS)
+CFLAGS := -O2 -g -Wall -target bpf -I/usr/include
 
 EBPF_DIR := ebpf
 GO_DIR := cmd/kubenetinsight
@@ -9,7 +9,7 @@ GO_DIR := cmd/kubenetinsight
 all: $(EBPF_DIR)/monitor.o $(GO_DIR)/kubenetinsight
 
 $(EBPF_DIR)/monitor.o: $(EBPF_DIR)/monitor.c
-	$(CLANG) $(CFLAGS) -target bpf -c $< -o $@
+	$(CLANG) $(CFLAGS) -c $< -o $@
 
 $(GO_DIR)/kubenetinsight: $(GO_DIR)/main.go
 	go build -o $@ $<
