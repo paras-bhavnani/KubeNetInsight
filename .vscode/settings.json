@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "libbpf.h": "c"
+        "libbpf.h": "c",
+        "bpf_helpers.h": "c"
     }
 }

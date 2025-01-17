@@ -7,30 +7,50 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 ### eBPF Network Monitoring
 - Kernel-level packet capture using XDP (eXpress Data Path)
 - Real-time packet monitoring across multiple CPU cores
-- Successful packet capture and analysis with the following capabilities:
+- Comprehensive packet capture and analysis with the following capabilities:
   - Source and destination IP tracking
   - Packet count monitoring
-  - Multi-core processing support (demonstrated across cores 004-011)
+  - Packet size tracking
+  - Connection tracking with source/destination ports
+  - Protocol-specific metrics (TCP/UDP)
+  - Latency measurements
+  - Packet drop monitoring
+  - Multi-core processing support
 
 ### Core Infrastructure
 - Integration with Kubernetes cluster (Minikube)
 - eBPF program loading and attachment
-- Basic metrics collection system
-- Real-time packet capture verification
+- Metrics collection system
+- Real-time packet capture and analysis
+
+### Kubernetes Integration
+- Basic pod and service discovery
+- IP address correlation with Kubernetes resources
+
+### Metrics and Monitoring
+- Basic Prometheus metrics exporter implementation
+- Custom metrics for:
+  - Network traffic (packet counts and bytes)
+  - Connection latency
+  - Packet drops
+  - Protocol-specific counts
+
+### Data Processing and Visualization
+- Consolidated network traffic summary
+- Detailed connection information
+- Summary statistics including total packets, bytes, unique sources/destinations, and protocol breakdown
 
 ## Work in Progress
 
 ### Kubernetes Integration
 - DaemonSet creation for cluster-wide deployment
-- Pod and service discovery implementation
+- Enhanced pod and service discovery
 - Network policy integration
+- Namespace-aware monitoring
 
 ### Metrics and Monitoring
-- Prometheus metrics exporter implementation
-- Custom metrics definition for:
-  - Network latency
-  - Packet drops
-  - Connection tracking
+- Advanced Prometheus metrics
+- Custom metrics refinement
 
 ### Visualization
 - Grafana dashboard integration
@@ -61,7 +81,7 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 - clang and LLVM for eBPF compilation
 
 ## Current Status
-The project successfully implements basic network monitoring capabilities and is actively being developed to include advanced features for comprehensive Kubernetes network insights.
+The project has successfully implemented comprehensive network monitoring capabilities, including packet tracking, latency measurements, and basic Kubernetes resource correlation. It is actively being developed to include advanced features for more in-depth Kubernetes network insights.
 
 ## Connect with Me
 - [GitHub](https://github.com/paras-bhavnani)

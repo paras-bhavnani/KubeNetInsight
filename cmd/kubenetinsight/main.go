@@ -68,7 +68,7 @@ func startMonitoring(ctx context.Context, collector *ebpf.Collector, kubeClient 
 	}
 	defer collector.Stop()
 
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -82,7 +82,7 @@ func startMonitoring(ctx context.Context, collector *ebpf.Collector, kubeClient 
 			}
 
 			// Read and process eBPF data
-			if err := processEBPFData(collector, exporter); err != nil {
+			if err := processEBPFData(collector, kubeClient, exporter); err != nil {
 				log.Printf("Failed to process eBPF data: %v", err)
 			}
 		}
@@ -114,49 +114,126 @@ func updateKubernetesMetrics(kubeClient *kubernetes.Client, exporter *metrics.Ex
 	return nil
 }
 
-func processEBPFData(collector *ebpf.Collector, exporter *metrics.Exporter) error {
-	// Read packet count map
+func processEBPFData(collector *ebpf.Collector, kubeClient *kubernetes.Client, exporter *metrics.Exporter) error {
 	packetCounts, err := collector.GetPacketCounts()
-	if err != nil {
-		return fmt.Errorf("failed to get packet counts: %v", err)
-	}
+    if err != nil {
+        return fmt.Errorf("failed to get packet counts: %v", err)
+    }
 
-	// Add this section to display metrics
-    for sourceIP, destinations := range packetCounts {
-        for destIP, count := range destinations {
-            // Just use %s for string formatting of IPs
-            log.Printf("Packets from %s to %s: %d", sourceIP, destIP, count)
-            exporter.AddNetworkTraffic(sourceIP, destIP, float64(count)*1500)
+    latencies, err := collector.GetLatencies()
+    if err != nil {
+        return fmt.Errorf("failed to get latencies: %v", err)
+    }
+
+    drops, err := collector.GetPacketDrops()
+    if err != nil {
+        return fmt.Errorf("failed to get packet drops: %v", err)
+    }
+
+    packetSizes, err := collector.GetPacketSizes()
+    if err != nil {
+        return fmt.Errorf("failed to get packet sizes: %v", err)
+    }
+
+    protocolCounts, err := collector.GetProtocolCounts()
+    if err != nil {
+        return fmt.Errorf("failed to get protocol counts: %v", err)
+    }
+
+	connections, err := collector.GetConnections()
+    if err != nil {
+        return fmt.Errorf("failed to get connections: %v", err)
+    }
+
+    fmt.Println("Network Traffic Summary:")
+    for srcIP, dests := range packetCounts {
+        srcResource, _ := correlateWithKubernetes(kubeClient, srcIP)
+        for dstIP, count := range dests {
+            dstResource, _ := correlateWithKubernetes(kubeClient, dstIP)
+            latency := latencies[srcIP][dstIP]
+            bytes := packetSizes[srcIP][dstIP]
+            fmt.Printf("  %s -> %s: %d packets, %d bytes, %.2f ms avg latency\n", 
+                       srcResource, dstResource, count, bytes, latency)
+            exporter.AddNetworkTraffic(srcIP, dstIP, float64(count))
+            exporter.ObserveConnectionLatency(srcIP, dstIP, latency)
         }
     }
 
-	for sourceIP, destinations := range packetCounts {
-		for destIP, count := range destinations {
-			exporter.AddNetworkTraffic(sourceIP, destIP, float64(count)*1500)
-		}
-	}
+	fmt.Println("Detailed Connections:")
+    for connInfo, count := range connections {
+        srcResource, _ := correlateWithKubernetes(kubeClient, connInfo.SourceIP)
+        dstResource, _ := correlateWithKubernetes(kubeClient, connInfo.DestIP)
+        fmt.Printf("  %s:%d -> %s:%d (%s): %d packets\n",
+            srcResource, connInfo.SourcePort,
+            dstResource, connInfo.DestPort,
+            protocolToString(connInfo.Protocol), count)
+    }
 
-	// Read connection latency map
-	latencies, err := collector.GetConnectionLatencies()
-	if err != nil {
-		return fmt.Errorf("failed to get connection latencies: %v", err)
-	}
+    if len(drops) > 0 {
+        fmt.Println("Packet Drops:")
+        for reason, count := range drops {
+            fmt.Printf("  %s: %d\n", reason, count)
+            exporter.IncrementPacketDrops(reason)
+        }
+    }
 
-	for conn, latency := range latencies {
-		exporter.ObserveConnectionLatency(conn.SourceIP, conn.DestIP, float64(latency)/1000000000) // Convert ns to seconds
-	}
-
-	// Read packet drop map
-	drops, err := collector.GetPacketDrops()
-	if err != nil {
-		return fmt.Errorf("failed to get packet drops: %v", err)
-	}
-
-	for reason, count := range drops {
-		for i := 0; i < int(count); i++ {
-			exporter.IncrementPacketDrops(reason)
-		}
-	}
+    printSummaryStats(packetCounts, packetSizes, protocolCounts)
 
 	return nil
+}
+
+func protocolToString(protocol uint8) string {
+	switch protocol {
+	case 6:
+		return "TCP"
+	case 17:
+		return "UDP"
+	default:
+		return fmt.Sprintf("Unknown (%d)", protocol)
+	}
+}
+
+func printSummaryStats(packetCounts map[string]map[string]uint64, bytesCounts map[string]map[string]uint64, protocolCounts map[string]uint64) {
+    var totalPackets, totalBytes uint64
+    var uniqueSources, uniqueDestinations int
+    sourcesSet := make(map[string]bool)
+    destinationsSet := make(map[string]bool)
+
+    for src, dests := range packetCounts {
+        sourcesSet[src] = true
+        for dst, count := range dests {
+            destinationsSet[dst] = true
+            totalPackets += count
+            totalBytes += bytesCounts[src][dst]
+        }
+    }
+
+    uniqueSources = len(sourcesSet)
+    uniqueDestinations = len(destinationsSet)
+
+    fmt.Println("Summary Statistics:")
+    fmt.Printf("- Total Packets: %d\n", totalPackets)
+    fmt.Printf("- Total Bytes: %d\n", totalBytes)
+    fmt.Printf("- Unique Sources: %d\n", uniqueSources)
+    fmt.Printf("- Unique Destinations: %d\n", uniqueDestinations)
+    fmt.Println("- Protocol Breakdown:")
+    for proto, count := range protocolCounts {
+        fmt.Printf("  - %s: %d packets\n", proto, count)
+    }
+    fmt.Println("--------------------")
+}
+
+
+func correlateWithKubernetes(kubeClient *kubernetes.Client, ip string) (string, error) {
+    pod, err := kubeClient.GetPodByIP(ip)
+    if err == nil {
+        return fmt.Sprintf("%s (Pod: %s)", ip, pod), nil
+    }
+
+    service, err := kubeClient.GetServiceByIP(ip)
+    if err == nil {
+        return fmt.Sprintf("%s (Service: %s)", ip, service), nil
+    }
+
+    return ip, nil
 }
