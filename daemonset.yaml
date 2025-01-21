@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubenetinsight
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: kubenetinsight
+  template:
+    metadata:
+      labels:
+        app: kubenetinsight
+    spec:
+      serviceAccountName: kubenetinsight-sa
+      containers:
+      - name: kubenetinsight
+        image: kubenetinsight:latest
+        imagePullPolicy: Never
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: sys
+          mountPath: /sys
+          readOnly: true
+      volumes:
+      - name: sys
+        hostPath:
+          path: /sys

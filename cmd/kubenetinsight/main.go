@@ -116,68 +116,77 @@ func updateKubernetesMetrics(kubeClient *kubernetes.Client, exporter *metrics.Ex
 
 func processEBPFData(collector *ebpf.Collector, kubeClient *kubernetes.Client, exporter *metrics.Exporter) error {
 	packetCounts, err := collector.GetPacketCounts()
-    if err != nil {
-        return fmt.Errorf("failed to get packet counts: %v", err)
-    }
+	if err != nil {
+		return fmt.Errorf("failed to get packet counts: %v", err)
+	}
 
-    latencies, err := collector.GetLatencies()
-    if err != nil {
-        return fmt.Errorf("failed to get latencies: %v", err)
-    }
+	latencies, err := collector.GetLatencies()
+	if err != nil {
+		return fmt.Errorf("failed to get latencies: %v", err)
+	}
 
-    drops, err := collector.GetPacketDrops()
-    if err != nil {
-        return fmt.Errorf("failed to get packet drops: %v", err)
-    }
+	drops, err := collector.GetPacketDrops()
+	if err != nil {
+		return fmt.Errorf("failed to get packet drops: %v", err)
+	}
 
-    packetSizes, err := collector.GetPacketSizes()
-    if err != nil {
-        return fmt.Errorf("failed to get packet sizes: %v", err)
-    }
+	packetSizes, err := collector.GetPacketSizes()
+	if err != nil {
+		return fmt.Errorf("failed to get packet sizes: %v", err)
+	}
 
-    protocolCounts, err := collector.GetProtocolCounts()
-    if err != nil {
-        return fmt.Errorf("failed to get protocol counts: %v", err)
-    }
+	protocolCounts, err := collector.GetProtocolCounts()
+	if err != nil {
+		return fmt.Errorf("failed to get protocol counts: %v", err)
+	}
 
 	connections, err := collector.GetConnections()
-    if err != nil {
-        return fmt.Errorf("failed to get connections: %v", err)
-    }
+	if err != nil {
+		return fmt.Errorf("failed to get connections: %v", err)
+	}
 
-    fmt.Println("Network Traffic Summary:")
-    for srcIP, dests := range packetCounts {
-        srcResource, _ := correlateWithKubernetes(kubeClient, srcIP)
-        for dstIP, count := range dests {
-            dstResource, _ := correlateWithKubernetes(kubeClient, dstIP)
-            latency := latencies[srcIP][dstIP]
-            bytes := packetSizes[srcIP][dstIP]
-            fmt.Printf("  %s -> %s: %d packets, %d bytes, %.2f ms avg latency\n", 
-                       srcResource, dstResource, count, bytes, latency)
-            exporter.AddNetworkTraffic(srcIP, dstIP, float64(count))
-            exporter.ObserveConnectionLatency(srcIP, dstIP, latency)
-        }
-    }
+	serviceTraffic := make(map[string]map[string]uint64)
+
+	fmt.Println("Network Traffic Summary:")
+	for srcIP, dests := range packetCounts {
+		srcResource, srcNamespace, _ := correlateWithKubernetes(kubeClient, srcIP)
+		for dstIP, count := range dests {
+			dstResource, dstNamespace, _ := correlateWithKubernetes(kubeClient, dstIP)
+			srcKey := fmt.Sprintf("%s/%s", srcNamespace, srcResource)
+			dstKey := fmt.Sprintf("%s/%s", dstNamespace, dstResource)
+
+			if _, ok := serviceTraffic[srcKey]; !ok {
+				serviceTraffic[srcKey] = make(map[string]uint64)
+			}
+			serviceTraffic[srcKey][dstKey] += count
+			latency := latencies[srcIP][dstIP]
+			bytes := packetSizes[srcIP][dstIP]
+			fmt.Printf("  %s/%s -> %s/%s: %d packets, %d bytes, %s avg latency\n",
+				srcNamespace, srcResource, dstNamespace, dstResource, count, bytes, formatLatency(latency))
+			exporter.AddNetworkTraffic(srcIP, dstIP, float64(count))
+			exporter.ObserveConnectionLatency(srcIP, dstIP, float64(latency))
+		}
+	}
 
 	fmt.Println("Detailed Connections:")
-    for connInfo, count := range connections {
-        srcResource, _ := correlateWithKubernetes(kubeClient, connInfo.SourceIP)
-        dstResource, _ := correlateWithKubernetes(kubeClient, connInfo.DestIP)
-        fmt.Printf("  %s:%d -> %s:%d (%s): %d packets\n",
-            srcResource, connInfo.SourcePort,
-            dstResource, connInfo.DestPort,
-            protocolToString(connInfo.Protocol), count)
-    }
+	for connInfo, count := range connections {
+		srcResource, srcNamespace, _ := correlateWithKubernetes(kubeClient, connInfo.SourceIP)
+		dstResource, dstNamespace, _ := correlateWithKubernetes(kubeClient, connInfo.DestIP)
+		fmt.Printf("  %s/%s:%d -> %s/%s:%d (%s): %d packets\n",
+			srcNamespace, srcResource, connInfo.SourcePort,
+			dstNamespace, dstResource, connInfo.DestPort,
+			protocolToString(connInfo.Protocol), count)
+	}
 
-    if len(drops) > 0 {
-        fmt.Println("Packet Drops:")
-        for reason, count := range drops {
-            fmt.Printf("  %s: %d\n", reason, count)
-            exporter.IncrementPacketDrops(reason)
-        }
-    }
+	if len(drops) > 0 {
+		fmt.Println("Packet Drops:")
+		for reason, count := range drops {
+			fmt.Printf("  %s: %d\n", reason, count)
+			exporter.IncrementPacketDrops(reason)
+		}
+	}
 
-    printSummaryStats(packetCounts, packetSizes, protocolCounts)
+	printSummaryStats(packetCounts, packetSizes, protocolCounts)
 
 	return nil
 }
@@ -194,46 +203,64 @@ func protocolToString(protocol uint8) string {
 }
 
 func printSummaryStats(packetCounts map[string]map[string]uint64, bytesCounts map[string]map[string]uint64, protocolCounts map[string]uint64) {
-    var totalPackets, totalBytes uint64
-    var uniqueSources, uniqueDestinations int
-    sourcesSet := make(map[string]bool)
-    destinationsSet := make(map[string]bool)
+	var totalPackets, totalBytes uint64
+	var uniqueSources, uniqueDestinations int
+	sourcesSet := make(map[string]bool)
+	destinationsSet := make(map[string]bool)
 
-    for src, dests := range packetCounts {
-        sourcesSet[src] = true
-        for dst, count := range dests {
-            destinationsSet[dst] = true
-            totalPackets += count
-            totalBytes += bytesCounts[src][dst]
-        }
-    }
+	for src, dests := range packetCounts {
+		sourcesSet[src] = true
+		for dst, count := range dests {
+			destinationsSet[dst] = true
+			totalPackets += count
+			totalBytes += bytesCounts[src][dst]
+		}
+	}
 
-    uniqueSources = len(sourcesSet)
-    uniqueDestinations = len(destinationsSet)
+	uniqueSources = len(sourcesSet)
+	uniqueDestinations = len(destinationsSet)
 
-    fmt.Println("Summary Statistics:")
-    fmt.Printf("- Total Packets: %d\n", totalPackets)
-    fmt.Printf("- Total Bytes: %d\n", totalBytes)
-    fmt.Printf("- Unique Sources: %d\n", uniqueSources)
-    fmt.Printf("- Unique Destinations: %d\n", uniqueDestinations)
-    fmt.Println("- Protocol Breakdown:")
-    for proto, count := range protocolCounts {
-        fmt.Printf("  - %s: %d packets\n", proto, count)
-    }
-    fmt.Println("--------------------")
+	fmt.Println("Summary Statistics:")
+	fmt.Printf("- Total Packets: %d\n", totalPackets)
+	fmt.Printf("- Total Bytes: %d\n", totalBytes)
+	fmt.Printf("- Unique Sources: %d\n", uniqueSources)
+	fmt.Printf("- Unique Destinations: %d\n", uniqueDestinations)
+	fmt.Println("- Protocol Breakdown:")
+	for proto, count := range protocolCounts {
+		fmt.Printf("  - %s: %d packets\n", proto, count)
+	}
+	fmt.Println("--------------------")
 }
 
+func correlateWithKubernetes(kubeClient *kubernetes.Client, ip string) (string, string, error) {
+	pod, namespace, err := kubeClient.GetPodByIP(ip)
+	if err == nil {
+		return fmt.Sprintf("%s (Pod)", pod), namespace, nil
+	}
 
-func correlateWithKubernetes(kubeClient *kubernetes.Client, ip string) (string, error) {
-    pod, err := kubeClient.GetPodByIP(ip)
-    if err == nil {
-        return fmt.Sprintf("%s (Pod: %s)", ip, pod), nil
-    }
+	service, namespace, err := kubeClient.GetServiceByIP(ip)
+	if err == nil {
+		return fmt.Sprintf("%s (Service)", service), namespace, nil
+	}
 
-    service, err := kubeClient.GetServiceByIP(ip)
-    if err == nil {
-        return fmt.Sprintf("%s (Service: %s)", ip, service), nil
-    }
+	return ip, "", nil
+}
 
-    return ip, nil
+type ConnectionSummary struct {
+	Source      string
+	Destination string
+	Protocol    string
+	PacketCount uint64
+}
+
+func formatLatency(latencyNs uint64) string {
+	if latencyNs < 1000 {
+		return fmt.Sprintf("%.2f ns", float64(latencyNs))
+	} else if latencyNs < 1000000 {
+		return fmt.Sprintf("%.2f μs", float64(latencyNs)/1000)
+	} else if latencyNs < 1000000000 {
+		return fmt.Sprintf("%.2f ms", float64(latencyNs)/1000000)
+	} else {
+		return fmt.Sprintf("%.2f s", float64(latencyNs)/1000000000)
+	}
 }

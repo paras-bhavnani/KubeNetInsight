@@ -19,10 +19,15 @@ struct {
     __uint(max_entries, 1024);
 } packet_count SEC(".maps");
 
+struct latency_data {
+    __u64 total_latency;
+    __u64 packet_count;
+};
+
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, struct ip_key);
-    __type(value, __u64);
+    __type(value, struct latency_data);
     __uint(max_entries, 1024);
 } latency_map SEC(".maps");
 
@@ -144,26 +149,36 @@ static __always_inline int process_packet(struct xdp_md *ctx, __u64 *ts) {
     __u64 *count = bpf_map_lookup_elem(&packet_count, &key);
     if (count) {
         __sync_fetch_and_add(count, 1);
-        bpf_printk("Packet captured: src_ip=%u, dst_ip=%u\n", key.src_ip, key.dst_ip);
+        // bpf_printk("Packet captured: src_ip=%u, dst_ip=%u\n", key.src_ip, key.dst_ip);
     } else {
         __u64 initial = 1;
         bpf_map_update_elem(&packet_count, &key, &initial, BPF_ANY);
-        bpf_printk("Packet captured: src_ip=%u, dst_ip=%u\n", key.src_ip, key.dst_ip);
+        // bpf_printk("Packet captured: src_ip=%u, dst_ip=%u\n", key.src_ip, key.dst_ip);
     }
 
     // Update latency
     __u64 *start_time = bpf_map_lookup_elem(&packet_start_time, &key);
     if (start_time) {
+        if (*ts < *start_time) {
+            bpf_printk("Timestamp overflow detected\n");
+            return XDP_PASS;
+        }
         __u64 latency = *ts - *start_time;
-        __u64 *total_latency = bpf_map_lookup_elem(&latency_map, &key);
-        if (total_latency) {
-            __sync_fetch_and_add(total_latency, latency);
+        struct latency_data *lat_data = bpf_map_lookup_elem(&latency_map, &key);
+        if (lat_data) {
+            __sync_fetch_and_add(&lat_data->total_latency, latency);
+            __sync_fetch_and_add(&lat_data->packet_count, 1);
         } else {
-            bpf_map_update_elem(&latency_map, &key, &latency, BPF_ANY);
+            struct latency_data new_data = {latency, 1};
+            if (bpf_map_update_elem(&latency_map, &key, &new_data, BPF_ANY) != 0) {
+                bpf_printk("Failed to update latency map, key: %llu\n", key);
+            }
         }
         bpf_map_delete_elem(&packet_start_time, &key);
     } else {
-        bpf_map_update_elem(&packet_start_time, &key, ts, BPF_ANY);
+        if (bpf_map_update_elem(&packet_start_time, &key, ts, BPF_ANY) != 0) {
+            bpf_printk("Failed to update packet_start_time map, key: %llu\n", key);
+        }
     }
 
     return XDP_PASS;

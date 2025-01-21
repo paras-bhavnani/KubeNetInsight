@@ -71,28 +71,28 @@ func (c *Client) GetServices(namespace string) ([]string, error) {
 	return serviceNames, nil
 }
 
-func (c *Client) GetPodByIP(ip string) (string, error) {
+func (c *Client) GetPodByIP(ip string) (string, string, error) {
     pods, err := c.clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
         FieldSelector: fmt.Sprintf("status.podIP=%s", ip),
     })
     if err != nil {
-        return "", err
+        return "", "", err
     }
     if len(pods.Items) > 0 {
-        return fmt.Sprintf("%s/%s", pods.Items[0].Namespace, pods.Items[0].Name), nil
+        return pods.Items[0].Name, pods.Items[0].Namespace, nil
     }
-    return "", fmt.Errorf("no pod found with IP %s", ip)
+    return "", "", fmt.Errorf("no pod found with IP %s", ip)
 }
 
-func (c *Client) GetServiceByIP(ip string) (string, error) {
+func (c *Client) GetServiceByIP(ip string) (string, string, error) {
     services, err := c.clientset.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{
         FieldSelector: fmt.Sprintf("spec.clusterIP=%s", ip),
     })
     if err != nil {
-        return "", err
+        return "", "", err
     }
     if len(services.Items) > 0 {
-        return fmt.Sprintf("%s/%s", services.Items[0].Namespace, services.Items[0].Name), nil
+        return services.Items[0].Name, services.Items[0].Namespace, nil
     }
-    return "", fmt.Errorf("no service found with IP %s", ip)
+    return "", "", fmt.Errorf("no service found with IP %s", ip)
 }

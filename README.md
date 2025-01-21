@@ -24,8 +24,11 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 - Real-time packet capture and analysis
 
 ### Kubernetes Integration
-- Basic pod and service discovery
+- DaemonSet creation for cluster-wide deployment
+- Enhanced pod and service discovery
+- Namespace-aware monitoring
 - IP address correlation with Kubernetes resources
+- Traffic mapping to Kubernetes services
 
 ### Metrics and Monitoring
 - Basic Prometheus metrics exporter implementation
@@ -41,12 +44,6 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 - Summary statistics including total packets, bytes, unique sources/destinations, and protocol breakdown
 
 ## Work in Progress
-
-### Kubernetes Integration
-- DaemonSet creation for cluster-wide deployment
-- Enhanced pod and service discovery
-- Network policy integration
-- Namespace-aware monitoring
 
 ### Metrics and Monitoring
 - Advanced Prometheus metrics
@@ -77,11 +74,11 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 ## Requirements
 - Linux kernel 5.15 or later
 - Kubernetes cluster (tested with Minikube)
-- Go 1.21+
+- Go 1.23
 - clang and LLVM for eBPF compilation
 
 ## Current Status
-The project has successfully implemented comprehensive network monitoring capabilities, including packet tracking, latency measurements, and basic Kubernetes resource correlation. It is actively being developed to include advanced features for more in-depth Kubernetes network insights.
+The project has successfully implemented comprehensive network monitoring capabilities, including packet tracking, latency measurements, and Kubernetes resource correlation. It now features cluster-wide deployment via DaemonSet, enhanced pod and service discovery, and namespace-aware monitoring. The system is actively being developed to include advanced features for more in-depth Kubernetes network insights.
 
 ## Connect with Me
 - [GitHub](https://github.com/paras-bhavnani)

@@ -83,3 +83,7 @@ func (e *Exporter) StartServer(port string) {
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(":"+port, nil)
 }
+
+func (e *Exporter) AddServiceTraffic(src, dst string, count float64) {
+    // Implement the logic to add service traffic metrics
+}
