@@ -10,18 +10,19 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 - Comprehensive packet capture and analysis with the following capabilities:
   - Source and destination IP tracking
   - Packet count monitoring
-  - Packet size tracking
+  - Packet size tracking with distribution metrics
   - Connection tracking with source/destination ports
   - Protocol-specific metrics (TCP/UDP)
-  - Latency measurements
+  - Latency measurements with histogram metrics
   - Packet drop monitoring
   - Multi-core processing support
 
 ### Core Infrastructure
 - Integration with Kubernetes cluster (Minikube)
 - eBPF program loading and attachment
-- Metrics collection system
+- Consolidated metrics collection system
 - Real-time packet capture and analysis
+- Enhanced data processing pipeline
 
 ### Kubernetes Integration
 - DaemonSet creation for cluster-wide deployment
@@ -29,35 +30,42 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 - Namespace-aware monitoring
 - IP address correlation with Kubernetes resources
 - Traffic mapping to Kubernetes services
+- Resource count metrics per namespace
 
 ### Metrics and Monitoring
-- Basic Prometheus metrics exporter implementation
+- Comprehensive Prometheus metrics exporter implementation
 - Custom metrics for:
   - Network traffic (packet counts and bytes)
-  - Connection latency
+  - Connection latency histograms
+  - Packet size distributions
+  - Protocol-specific traffic
+  - Connection states
   - Packet drops
-  - Protocol-specific counts
+  - Pod and service counts per namespace
 
 ### Data Processing and Visualization
 - Consolidated network traffic summary
-- Detailed connection information
-- Summary statistics including total packets, bytes, unique sources/destinations, and protocol breakdown
+- Detailed connection information with protocol states
+- Rich summary statistics including:
+  - Total packets and bytes
+  - Unique sources/destinations
+  - Protocol breakdown
+  - Connection states
+  - Latency distributions
 
 ## Work in Progress
-
-### Metrics and Monitoring
-- Advanced Prometheus metrics
-- Custom metrics refinement
 
 ### Visualization
 - Grafana dashboard integration
 - Real-time network topology visualization
 - Traffic flow analysis displays
+- Custom metric dashboards
 
 ### Performance Optimization
 - eBPF map optimization
 - Multi-core performance tuning
 - Memory usage optimization
+- Metric collection efficiency
 
 ## Upcoming Features
 
@@ -65,11 +73,13 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 - Network policy compliance monitoring
 - Anomaly detection
 - Traffic pattern analysis
+- Historical trend analysis
 
 ### Security Features
 - Network security monitoring
 - Suspicious traffic detection
 - Policy violation alerts
+- Traffic anomaly detection
 
 ## Requirements
 - Linux kernel 5.15 or later
@@ -78,7 +88,7 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 - clang and LLVM for eBPF compilation
 
 ## Current Status
-The project has successfully implemented comprehensive network monitoring capabilities, including packet tracking, latency measurements, and Kubernetes resource correlation. It now features cluster-wide deployment via DaemonSet, enhanced pod and service discovery, and namespace-aware monitoring. The system is actively being developed to include advanced features for more in-depth Kubernetes network insights.
+The project now features a robust metrics implementation with comprehensive Prometheus integration. Key improvements include histogram-based latency tracking, packet size distribution metrics, and detailed protocol-specific monitoring. The system provides rich insights into cluster networking through consolidated statistics and enhanced Kubernetes resource correlation.
 
 ## Connect with Me
 - [GitHub](https://github.com/paras-bhavnani)

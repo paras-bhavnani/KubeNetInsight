@@ -41,6 +41,26 @@ type ConnectionInfo struct {
 	DestNamespace   string
 }
 
+type PacketStats struct {
+	Source      string
+	Destination string
+	Protocol    string
+	Size        uint64
+	Count       uint64
+	Latency     uint64
+	Bytes       uint64
+}
+
+type ConnectionStats struct {
+	Source      string
+	Destination string
+	State       string
+	Count       uint64
+	Protocol    string
+	SourcePort  uint16
+	DestPort    uint16
+}
+
 func NewCollector() (*Collector, error) {
 	// Load pre-compiled eBPF program
 	spec, err := ebpf.LoadCollectionSpec("ebpf/monitor.o")
@@ -238,6 +258,87 @@ func (c *Collector) Stop() error {
 		return c.link.Close()
 	}
 	return nil
+}
+
+func (c *Collector) GetPacketStats() ([]PacketStats, error) {
+	var stats []PacketStats
+
+	// Get all required metrics
+	packetCounts, err := c.GetPacketCounts()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get packet counts: %v", err)
+	}
+
+	packetSizes, err := c.GetPacketSizes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get packet sizes: %v", err)
+	}
+
+	latencies, err := c.GetLatencies()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latencies: %v", err)
+	}
+
+	// Aggregate metrics
+	for srcIP, dests := range packetCounts {
+		for dstIP, count := range dests {
+			stat := PacketStats{
+				Source:      srcIP,
+				Destination: dstIP,
+				Count:       count,
+				Size:        packetSizes[srcIP][dstIP],
+				Latency:     latencies[srcIP][dstIP],
+				Bytes:       packetSizes[srcIP][dstIP] * count,
+			}
+			stats = append(stats, stat)
+		}
+	}
+
+	return stats, nil
+}
+
+func (c *Collector) GetConnectionStats() ([]ConnectionStats, error) {
+	var stats []ConnectionStats
+
+	connections, err := c.GetConnections()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get connections: %v", err)
+	}
+
+	for connInfo, count := range connections {
+		stat := ConnectionStats{
+			Source:      connInfo.SourceIP,
+			Destination: connInfo.DestIP,
+			SourcePort:  connInfo.SourcePort,
+			DestPort:    connInfo.DestPort,
+			Protocol:    protocolToString(connInfo.Protocol),
+			Count:       count,
+			State:       determineConnectionState(connInfo),
+		}
+		stats = append(stats, stat)
+	}
+
+	return stats, nil
+}
+
+func determineConnectionState(connInfo ConnectionInfo) string {
+	// Basic state determination based on protocol
+	// You can enhance this based on your needs
+	if connInfo.Protocol == 6 { // TCP
+		return "ESTABLISHED" // Simplified - you might want to track actual TCP states
+	}
+	return "ACTIVE" // For UDP and others
+}
+
+func protocolToString(protocol uint8) string {
+	switch protocol {
+	case 6:
+		return "TCP"
+	case 17:
+		return "UDP"
+	default:
+		return fmt.Sprintf("UNKNOWN(%d)", protocol)
+	}
 }
 
 // Start attaches the eBPF program to the network interface

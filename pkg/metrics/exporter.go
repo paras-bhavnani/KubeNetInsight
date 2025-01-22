@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,6 +14,10 @@ type Exporter struct {
 	networkTraffic    *prometheus.CounterVec
 	packetDrops       *prometheus.CounterVec
 	connectionLatency *prometheus.HistogramVec
+	packetSize        *prometheus.HistogramVec
+	connectionStates  *prometheus.GaugeVec
+	protocolTraffic   *prometheus.CounterVec
+	// retransmissions   *prometheus.CounterVec
 }
 
 func NewExporter() (*Exporter, error) {
@@ -53,9 +58,33 @@ func NewExporter() (*Exporter, error) {
 			},
 			[]string{"source_ip", "destination_ip"},
 		),
+		packetSize: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "kubenetinsight_packet_size_bytes",
+				Help:    "Distribution of packet sizes",
+				Buckets: prometheus.ExponentialBuckets(64, 2, 10), // 64B to 32KB
+			},
+			[]string{"source", "destination", "protocol"},
+		),
+
+		connectionStates: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "kubenetinsight_connection_states",
+				Help: "Number of connections in each state",
+			},
+			[]string{"state", "source_ip", "destination_ip", "protocol", "source_port", "destination_port"},
+		),
+
+		protocolTraffic: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "kubenetinsight_protocol_traffic_total",
+				Help: "Traffic breakdown by protocol",
+			},
+			[]string{"protocol", "source", "destination"},
+		),
 	}
 
-	prometheus.MustRegister(e.podCount, e.serviceCount, e.networkTraffic, e.packetDrops, e.connectionLatency)
+	prometheus.MustRegister(e.podCount, e.serviceCount, e.networkTraffic, e.packetDrops, e.connectionLatency, e.packetSize, e.connectionStates, e.protocolTraffic)
 	return e, nil
 }
 
@@ -79,11 +108,26 @@ func (e *Exporter) ObserveConnectionLatency(sourceIP, destIP string, latency flo
 	e.connectionLatency.WithLabelValues(sourceIP, destIP).Observe(latency)
 }
 
+func (e *Exporter) ObservePacketSize(source, destination, protocol string, size float64) {
+	e.packetSize.WithLabelValues(source, destination, protocol).Observe(size)
+}
+
+func (e *Exporter) SetConnectionState(sourceIP, destIP string, sourcePort, destPort uint16, protocol, state string, count float64) {
+	e.connectionStates.WithLabelValues(
+		state,
+		sourceIP,
+		destIP,
+		protocol,
+		fmt.Sprintf("%d", sourcePort),
+		fmt.Sprintf("%d", destPort),
+	).Set(count)
+}
+
+func (e *Exporter) AddProtocolTraffic(protocol, source, destination string, bytes float64) {
+	e.protocolTraffic.WithLabelValues(protocol, source, destination).Add(bytes)
+}
+
 func (e *Exporter) StartServer(port string) {
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(":"+port, nil)
-}
-
-func (e *Exporter) AddServiceTraffic(src, dst string, count float64) {
-    // Implement the logic to add service traffic metrics
 }

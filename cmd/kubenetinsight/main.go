@@ -115,24 +115,58 @@ func updateKubernetesMetrics(kubeClient *kubernetes.Client, exporter *metrics.Ex
 }
 
 func processEBPFData(collector *ebpf.Collector, kubeClient *kubernetes.Client, exporter *metrics.Exporter) error {
-	packetCounts, err := collector.GetPacketCounts()
+	// Get consolidated stats
+	packetStats, err := collector.GetPacketStats()
 	if err != nil {
-		return fmt.Errorf("failed to get packet counts: %v", err)
+		return fmt.Errorf("failed to get packet stats: %v", err)
 	}
 
-	latencies, err := collector.GetLatencies()
+	connStats, err := collector.GetConnectionStats()
 	if err != nil {
-		return fmt.Errorf("failed to get latencies: %v", err)
+		return fmt.Errorf("failed to get connection stats: %v", err)
 	}
 
+	// Get packet drops
 	drops, err := collector.GetPacketDrops()
 	if err != nil {
 		return fmt.Errorf("failed to get packet drops: %v", err)
 	}
 
-	packetSizes, err := collector.GetPacketSizes()
-	if err != nil {
-		return fmt.Errorf("failed to get packet sizes: %v", err)
+	// Create maps for summary statistics
+	packetCounts := make(map[string]map[string]uint64)
+	bytesCounts := make(map[string]map[string]uint64)
+	// protocolCounts := make(map[string]uint64)
+
+	// Process packet statistics
+	fmt.Println("Network Traffic Summary:")
+	for _, stat := range packetStats {
+		srcResource, srcNamespace, _ := correlateWithKubernetes(kubeClient, stat.Source)
+		dstResource, dstNamespace, _ := correlateWithKubernetes(kubeClient, stat.Destination)
+
+		// Update summary statistics maps
+		if _, ok := packetCounts[stat.Source]; !ok {
+			packetCounts[stat.Source] = make(map[string]uint64)
+			bytesCounts[stat.Source] = make(map[string]uint64)
+		}
+		packetCounts[stat.Source][stat.Destination] = stat.Count
+		bytesCounts[stat.Source][stat.Destination] = stat.Bytes
+
+		fmt.Printf("  %s/%s -> %s/%s: %d packets, %d bytes, %s avg latency\n",
+			srcNamespace, srcResource, dstNamespace, dstResource,
+			stat.Count, stat.Bytes, formatLatency(stat.Latency))
+
+		exporter.AddNetworkTraffic(stat.Source, stat.Destination, float64(stat.Count))
+		exporter.ObserveConnectionLatency(stat.Source, stat.Destination, float64(stat.Latency))
+
+		protocol := "unknown"
+		for _, conn := range connStats {
+			if conn.Source == stat.Source && conn.Destination == stat.Destination {
+				protocol = conn.Protocol
+				break
+			}
+		}
+
+		exporter.ObservePacketSize(stat.Source, stat.Destination, protocol, float64(stat.Bytes/stat.Count))
 	}
 
 	protocolCounts, err := collector.GetProtocolCounts()
@@ -140,44 +174,7 @@ func processEBPFData(collector *ebpf.Collector, kubeClient *kubernetes.Client, e
 		return fmt.Errorf("failed to get protocol counts: %v", err)
 	}
 
-	connections, err := collector.GetConnections()
-	if err != nil {
-		return fmt.Errorf("failed to get connections: %v", err)
-	}
-
-	serviceTraffic := make(map[string]map[string]uint64)
-
-	fmt.Println("Network Traffic Summary:")
-	for srcIP, dests := range packetCounts {
-		srcResource, srcNamespace, _ := correlateWithKubernetes(kubeClient, srcIP)
-		for dstIP, count := range dests {
-			dstResource, dstNamespace, _ := correlateWithKubernetes(kubeClient, dstIP)
-			srcKey := fmt.Sprintf("%s/%s", srcNamespace, srcResource)
-			dstKey := fmt.Sprintf("%s/%s", dstNamespace, dstResource)
-
-			if _, ok := serviceTraffic[srcKey]; !ok {
-				serviceTraffic[srcKey] = make(map[string]uint64)
-			}
-			serviceTraffic[srcKey][dstKey] += count
-			latency := latencies[srcIP][dstIP]
-			bytes := packetSizes[srcIP][dstIP]
-			fmt.Printf("  %s/%s -> %s/%s: %d packets, %d bytes, %s avg latency\n",
-				srcNamespace, srcResource, dstNamespace, dstResource, count, bytes, formatLatency(latency))
-			exporter.AddNetworkTraffic(srcIP, dstIP, float64(count))
-			exporter.ObserveConnectionLatency(srcIP, dstIP, float64(latency))
-		}
-	}
-
-	fmt.Println("Detailed Connections:")
-	for connInfo, count := range connections {
-		srcResource, srcNamespace, _ := correlateWithKubernetes(kubeClient, connInfo.SourceIP)
-		dstResource, dstNamespace, _ := correlateWithKubernetes(kubeClient, connInfo.DestIP)
-		fmt.Printf("  %s/%s:%d -> %s/%s:%d (%s): %d packets\n",
-			srcNamespace, srcResource, connInfo.SourcePort,
-			dstNamespace, dstResource, connInfo.DestPort,
-			protocolToString(connInfo.Protocol), count)
-	}
-
+	// Process packet drops
 	if len(drops) > 0 {
 		fmt.Println("Packet Drops:")
 		for reason, count := range drops {
@@ -186,20 +183,10 @@ func processEBPFData(collector *ebpf.Collector, kubeClient *kubernetes.Client, e
 		}
 	}
 
-	printSummaryStats(packetCounts, packetSizes, protocolCounts)
+	// Print summary statistics
+	printSummaryStats(packetCounts, bytesCounts, protocolCounts)
 
 	return nil
-}
-
-func protocolToString(protocol uint8) string {
-	switch protocol {
-	case 6:
-		return "TCP"
-	case 17:
-		return "UDP"
-	default:
-		return fmt.Sprintf("Unknown (%d)", protocol)
-	}
 }
 
 func printSummaryStats(packetCounts map[string]map[string]uint64, bytesCounts map[string]map[string]uint64, protocolCounts map[string]uint64) {
