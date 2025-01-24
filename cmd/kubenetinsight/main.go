@@ -183,6 +183,30 @@ func processEBPFData(collector *ebpf.Collector, kubeClient *kubernetes.Client, e
 		}
 	}
 
+	// Process connection statistics
+	fmt.Println("Detailed Connections:")
+	for _, conn := range connStats {
+		srcResource, srcNamespace, _ := correlateWithKubernetes(kubeClient, conn.Source)
+		dstResource, dstNamespace, _ := correlateWithKubernetes(kubeClient, conn.Destination)
+
+		// Update metrics
+		exporter.AddProtocolTraffic(conn.Protocol, conn.Source, conn.Destination, float64(conn.Count))
+		exporter.SetConnectionState(
+			conn.Source,
+			conn.Destination,
+			conn.SourcePort,
+			conn.DestPort,
+			conn.Protocol,
+			conn.State,
+			float64(conn.Count),
+		)
+
+		fmt.Printf("  %s/%s:%d -> %s/%s:%d (%s): %d packets [%s]\n",
+			srcNamespace, srcResource, conn.SourcePort,
+			dstNamespace, dstResource, conn.DestPort,
+			conn.Protocol, conn.Count, conn.State)
+	}
+
 	// Print summary statistics
 	printSummaryStats(packetCounts, bytesCounts, protocolCounts)
 

@@ -2,6 +2,7 @@ package ebpf
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -22,6 +23,26 @@ type Collector struct {
 	protocolCountMap *ebpf.Map
 	link             link.Link
 	kubeClient       *kubernetes.Client
+}
+
+type ConnInfo struct {
+	SrcIP    uint32
+	DstIP    uint32
+	SrcPort  uint16
+	DstPort  uint16
+	Protocol uint8
+}
+
+func (c *ConnInfo) UnmarshalBinary(data []byte) error {
+	if len(data) < 13 {
+		return errors.New("not enough data")
+	}
+	c.SrcIP = binary.LittleEndian.Uint32(data[0:4])
+	c.DstIP = binary.LittleEndian.Uint32(data[4:8])
+	c.SrcPort = binary.BigEndian.Uint16(data[8:10])
+	c.DstPort = binary.BigEndian.Uint16(data[10:12])
+	c.Protocol = data[12]
+	return nil
 }
 
 type Connection struct {
@@ -143,12 +164,9 @@ func (c *Collector) GetPacketSizes() (map[string]map[string]uint64, error) {
 
 func (c *Collector) GetConnections() (map[ConnectionInfo]uint64, error) {
 	connections := make(map[ConnectionInfo]uint64)
-	var key struct {
-		SrcIP, DstIP     uint32
-		SrcPort, DstPort uint16
-		Protocol         uint8
-	}
+	var key ConnInfo
 	var value uint64
+
 	entries := c.connectionMap.Iterate()
 	for entries.Next(&key, &value) {
 		srcIP := int2ip(key.SrcIP).String()
@@ -178,6 +196,9 @@ func (c *Collector) GetConnections() (map[ConnectionInfo]uint64, error) {
 			DestNamespace:   dstNamespace,
 		}
 		connections[connInfo] = value
+	}
+	if entries.Err() != nil {
+		log.Printf("Error iterating connection_map: %v", entries.Err())
 	}
 	return connections, nil
 }
