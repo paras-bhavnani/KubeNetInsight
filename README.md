@@ -2,7 +2,7 @@
 
 A real-time network monitoring solution for Kubernetes clusters using eBPF technology.
 
-## Implemented Features
+## Features
 
 ### eBPF Network Monitoring
 - Kernel-level packet capture using XDP (eXpress Data Path)
@@ -52,43 +52,36 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
   - Protocol breakdown
   - Connection states
   - Latency distributions
-
-## Work in Progress
-
-### Visualization
-- Grafana dashboard integration
-- Real-time network topology visualization
-- Traffic flow analysis displays
-- Custom metric dashboards
-
-### Performance Optimization
-- eBPF map optimization
-- Multi-core performance tuning
-- Memory usage optimization
-- Metric collection efficiency
-
-## Upcoming Features
-
-### Advanced Analytics
-- Network policy compliance monitoring
-- Anomaly detection
-- Traffic pattern analysis
-- Historical trend analysis
-
-### Security Features
-- Network security monitoring
-- Suspicious traffic detection
-- Policy violation alerts
-- Traffic anomaly detection
+- Grafana dashboards for:
+  - Network topology visualization
+  - Traffic pattern analysis
+  - Performance metrics monitoring
+  - Alert configuration
 
 ## Requirements
 - Linux kernel 5.15 or later
 - Kubernetes cluster (tested with Minikube)
 - Go 1.23
 - clang and LLVM for eBPF compilation
+- Prometheus and Grafana for metrics visualization
+
+## Project Structure
+```
+.
+├── cmd/kubenetinsight/     # Main application entry point
+├── pkg/
+│   ├── ebpf/              # eBPF program and collector
+│   ├── kubernetes/        # Kubernetes client integration
+│   └── metrics/           # Prometheus metrics exporter
+├── manifests/
+│   └── monitoring/        # Kubernetes deployment manifests
+│       ├── grafana/       # Grafana configuration
+│       └── prometheus/    # Prometheus configuration
+└── scripts/               # Build and deployment scripts
+```
 
 ## Current Status
-The project now features a robust metrics implementation with comprehensive Prometheus integration. Key improvements include histogram-based latency tracking, packet size distribution metrics, and detailed protocol-specific monitoring. The system provides rich insights into cluster networking through consolidated statistics and enhanced Kubernetes resource correlation.
+The project now features a robust metrics implementation with comprehensive Prometheus and Grafana integration. Key improvements include histogram-based latency tracking, packet size distribution metrics, and detailed protocol-specific monitoring. The system provides rich insights into cluster networking through consolidated statistics and enhanced Kubernetes resource correlation. The latest implementation includes detailed connection tracking with proper endianness handling and visualization capabilities through custom Grafana dashboards.
 
 ## Connect with Me
 - [GitHub](https://github.com/paras-bhavnani)
