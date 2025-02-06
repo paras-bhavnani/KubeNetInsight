@@ -43,6 +43,21 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
   - Packet drops
   - Pod and service counts per namespace
 
+#### Enhanced Metrics Capabilities
+- Real-time metric querying and analysis
+- Detailed latency tracking with percentile distributions:
+  - Average latency measurements
+  - 10th, 50th, 90th, and 99th percentile analysis
+  - Source/destination IP correlation
+- Network traffic analysis:
+  - Byte-level traffic monitoring
+  - Time-series data collection
+  - Per-connection statistics
+- Connection state tracking:
+  - TCP connection states (ESTABLISHED, etc.)
+  - Protocol-specific monitoring
+  - Port-level details
+
 ### Data Processing and Visualization
 - Consolidated network traffic summary
 - Detailed connection information with protocol states
@@ -68,20 +83,51 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 ## Project Structure
 ```
 .
-├── cmd/kubenetinsight/     # Main application entry point
+├── cmd/
+│   └── kubenetinsight/
+│       └── main.go        # Main application entry point and network monitoring logic
 ├── pkg/
-│   ├── ebpf/              # eBPF program and collector
-│   ├── kubernetes/        # Kubernetes client integration
-│   └── metrics/           # Prometheus metrics exporter
+│   ├── ebpf/
+│   │   ├── monitor.c      # eBPF program for packet capture and analysis
+│   │   └── monitor.o      # Compiled eBPF object file
+│   ├── kubernetes/
+│   │   └── client.go      # Kubernetes API client integration
+│   └── metrics/
+│       ├── __init__.py    # Python package initialization
+│       ├── exporter.go    # Prometheus metrics exporter implementation
+│       └── prometheus_client.py  # Python client for querying Prometheus metrics
 ├── manifests/
-│   └── monitoring/        # Kubernetes deployment manifests
-│       ├── grafana/       # Grafana configuration
-│       └── prometheus/    # Prometheus configuration
-└── scripts/               # Build and deployment scripts
+│   └── monitoring/
+│       ├── grafana/
+│       │   ├── dashboards/  # Grafana dashboard configurations
+│       │   ├── deployment.yaml  # Grafana deployment configuration
+│       │   └── secret.yaml  # Grafana secrets configuration
+│       ├── kubenetinsight/
+│       │   └── metrics-service.yaml  # Metrics service configuration
+│       └── prometheus/
+│           └── prometheus-deployment.yaml  # Prometheus deployment and config
+├── scripts/
+│   └── build.sh          # Build automation script
+├── .gitignore           # Git ignore patterns
+├── Dockerfile           # Container image build configuration
+├── Makefile            # Build and deployment automation
+├── README.md           # Project documentation
+├── daemonset.yaml      # DaemonSet deployment configuration
+├── go.mod              # Go module dependencies
+├── go.sum              # Go module checksums
+├── kubenetinsight-role.yaml        # RBAC role configuration
+├── kubenetinsight-rolebinding.yaml # RBAC role binding configuration
+└── kubenetinsight-sa.yaml          # Service account configuration
 ```
 
 ## Current Status
 The project now features a robust metrics implementation with comprehensive Prometheus and Grafana integration. Key improvements include histogram-based latency tracking, packet size distribution metrics, and detailed protocol-specific monitoring. The system provides rich insights into cluster networking through consolidated statistics and enhanced Kubernetes resource correlation. The latest implementation includes detailed connection tracking with proper endianness handling and visualization capabilities through custom Grafana dashboards.
+
+Recent enhancements include:
+- Advanced latency analysis with percentile-based tracking
+- Comprehensive network traffic monitoring with time-series data
+- Detailed connection state tracking and protocol analysis
+- Enhanced metric querying capabilities for real-time analysis
 
 ## Connect with Me
 - [GitHub](https://github.com/paras-bhavnani)

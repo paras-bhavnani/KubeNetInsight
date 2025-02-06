@@ -52,9 +52,9 @@ func NewExporter() (*Exporter, error) {
 		),
 		connectionLatency: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "kubenetinsight_connection_latency_seconds",
+				Name:    "kubenetinsight_connection_latency_nano_seconds",
 				Help:    "Latency of network connections",
-				Buckets: prometheus.ExponentialBuckets(0.0001, 2, 15),
+				Buckets: prometheus.ExponentialBuckets(0.01, 10, 15), // Start at 0.01 nanosecond
 			},
 			[]string{"source_ip", "destination_ip"},
 		),
