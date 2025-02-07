@@ -97,6 +97,8 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 │       ├── exporter.go    # Prometheus metrics exporter implementation
 │       └── prometheus_client.py  # Python client for querying Prometheus metrics
 ├── manifests/
+│   ├── documentation/
+│   │   └── runbooks/      # Operational runbooks and troubleshooting guides
 │   └── monitoring/
 │       ├── grafana/
 │       │   ├── dashboards/  # Grafana dashboard configurations
