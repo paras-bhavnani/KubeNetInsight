@@ -43,7 +43,7 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
   - Packet drops
   - Pod and service counts per namespace
 
-#### Enhanced Metrics Capabilities
+### Enhanced Metrics Capabilities
 - Real-time metric querying and analysis
 - Detailed latency tracking with percentile distributions:
   - Average latency measurements
@@ -73,6 +73,18 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
   - Performance metrics monitoring
   - Alert configuration
 
+### RAG (Retrieval Augmented Generation)
+- Vector database implementation using FAISS
+- Document embedding generation and storage
+- Optimized semantic search functionality
+- REST API for document retrieval
+- Comprehensive runbooks covering:
+  - Pod lifecycle management
+  - Network troubleshooting
+  - Performance optimization
+  - Monitoring and alerts
+  - KubeNetInsight-specific issues
+
 ## Requirements
 - Linux kernel 5.15 or later
 - Kubernetes cluster (tested with Minikube)
@@ -87,6 +99,12 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 │   └── kubenetinsight/
 │       └── main.go        # Main application entry point and network monitoring logic
 ├── pkg/
+│   ├── api/
+│   │   └── search.py      # Search API implementation
+│   ├── embeddings/
+│   │   ├── model.py       # Embedding model implementation
+│   │   ├── index.py       # FAISS index management
+│   │   └── optimizer.py   # Query optimization
 │   ├── ebpf/
 │   │   ├── monitor.c      # eBPF program for packet capture and analysis
 │   │   └── monitor.o      # Compiled eBPF object file
