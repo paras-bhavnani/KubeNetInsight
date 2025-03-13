@@ -101,6 +101,7 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 ├── pkg/
 │   ├── api/
 │   │   └── search.py      # Search API implementation
+│   │   └── app.py         # Flask API for RAG pipeline
 │   ├── embeddings/
 │   │   ├── model.py       # Embedding model implementation
 │   │   ├── index.py       # FAISS index management
@@ -110,10 +111,15 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 │   │   └── monitor.o      # Compiled eBPF object file
 │   ├── kubernetes/
 │   │   └── client.go      # Kubernetes API client integration
+│   ├── llm/
+│   │   └── inference.py   # LLM inference logic
 │   └── metrics/
 │       ├── __init__.py    # Python package initialization
 │       ├── exporter.go    # Prometheus metrics exporter implementation
 │       └── prometheus_client.py  # Python client for querying Prometheus metrics
+│   └── rag/
+│       ├── __init__.py    # RAG package initialization
+│       └── pipeline.py    # RAG pipeline implementation
 ├── manifests/
 │   ├── documentation/
 │   │   └── runbooks/      # Operational runbooks and troubleshooting guides
@@ -143,11 +149,12 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 ## Current Status
 The project now features a robust metrics implementation with comprehensive Prometheus and Grafana integration. Key improvements include histogram-based latency tracking, packet size distribution metrics, and detailed protocol-specific monitoring. The system provides rich insights into cluster networking through consolidated statistics and enhanced Kubernetes resource correlation. The latest implementation includes detailed connection tracking with proper endianness handling and visualization capabilities through custom Grafana dashboards.
 
-Recent enhancements include:
-- Advanced latency analysis with percentile-based tracking
-- Comprehensive network traffic monitoring with time-series data
-- Detailed connection state tracking and protocol analysis
-- Enhanced metric querying capabilities for real-time analysis
+## Recent Changes
+- Added Flask API for RAG pipeline (`pkg/api/app.py`)
+- Implemented FAISS index management and document retrieval (`pkg/embeddings/index.py`)
+- Added LLM inference logic for generating responses (`pkg/llm/inference.py`)
+- Created RAG pipeline for processing queries (`pkg/rag/pipeline.py`)
+- Added binary files for FAISS index and document storage (`kubeNetInsight_docs.npy`, `kubeNetInsight_index.faiss`)
 
 ## Connect with Me
 - [GitHub](https://github.com/paras-bhavnani)

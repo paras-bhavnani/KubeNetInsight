@@ -8,6 +8,27 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from pkg.embeddings.model import EmbeddingModel
 
+def get_context(query, k=3):
+    """Retrieve the top-k most relevant documents for a given query."""
+    # Initialize DocumentStore
+    doc_store = DocumentStore()
+    
+    # Load pre-saved FAISS index and documents
+    index_path = "kubeNetInsight_index.faiss"
+    documents_path = "kubeNetInsight_docs.npy"
+    
+    if not os.path.exists(index_path) or not os.path.exists(documents_path):
+        raise FileNotFoundError("FAISS index or documents file not found. Please ensure they are saved.")
+    
+    doc_store.load(index_path, documents_path)
+    
+    # Search for relevant documents
+    results = doc_store.search(query, k=k)
+    
+    # Combine the top-k results into a single context string
+    context = "\n".join([result['document'] for result in results])
+    return context
+
 class DocumentStore:
     def __init__(self, dimension=384):
         self.dimension = dimension
