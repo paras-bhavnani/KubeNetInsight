@@ -1,0 +1,59 @@
+# Core Application
+image:
+  repository: kubenetinsight
+  tag: latest        # or your timestamp tag
+  pullPolicy: Never
+
+# Disable subcharts
+prometheus:
+  enabled: false  # Disable Prometheus operator
+grafana:
+  enabled: false  # Disable Grafana if using your own
+
+# Configure your own metrics endpoint
+metrics:
+  port: 8080  # Must match code
+  serviceName: kubenetinsight-metrics
+
+# Resource limits
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# values.yaml
+# Add this section
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "services", "namespaces", "endpoints"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["networking.k8s.io"]
+      resources: ["networkpolicies"]
+      verbs: ["get", "list"]
+
+daemonset:
+  securityContext:
+    capabilities:
+      add: ["BPF", "SYS_RESOURCE", "NET_ADMIN", "SYS_ADMIN", "PERFMON"]
+    seccompProfile:
+      type: RuntimeDefault  # Instead of Unconfined
+    runAsUser: 0
+    allowPrivilegeEscalation: false  # Prevent privilege creep
+    seccompProfile:
+      type: Unconfined
+  volumes:
+    - name: sys
+      hostPath:
+        path: /sys
+    - name: debugfs
+      hostPath:
+        path: /sys/kernel/debug
+    - name: bpffs
+      hostPath:
+        path: /sys/fs/bpf
+        type: DirectoryOrCreate

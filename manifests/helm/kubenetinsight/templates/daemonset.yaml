@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "kubenetinsight.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels: {{- include "kubenetinsight.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "kubenetinsight.selectorLabels" . | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"  # Annotation-based discovery
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: {{ .Release.Name }}-sa
+      hostNetwork: true
+      hostPID: true
+      hostNetwork: true
+      volumes:
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: debugfs
+          hostPath:
+            path: /sys/kernel/debug
+        - name: bpffs
+          hostPath:
+            path: /sys/fs/bpf
+            type: DirectoryOrCreate
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 8080
+          name: metrics
+        env:
+        - name: METRICS_PORT
+          value: "8080"
+        securityContext:
+          {{- toYaml .Values.daemonset.securityContext | nindent 12 }}
+        volumeMounts:
+        - name: sys
+          mountPath: /sys
+          readOnly: true
+        - name: debugfs
+          mountPath: /sys/kernel/debug
+          readOnly: true
+        - name: bpffs
+          mountPath: /sys/fs/bpf

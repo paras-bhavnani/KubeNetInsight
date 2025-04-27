@@ -2,6 +2,36 @@
 
 A real-time network monitoring solution for Kubernetes clusters using eBPF technology.
 
+## Quickstart
+
+### Prerequisites
+- Kubernetes cluster (e.g. Minikube)
+- Helm 3
+- Docker or Minikube Docker daemon
+- Go 1.23, clang/LLVM (for local builds)
+
+### Deploy with Helm
+
+```
+Build and deploy locally in Minikube
+make deploy
+
+or manually:
+eval $(minikube docker-env)
+docker build -t kubenetinsight:latest .
+helm upgrade --install kubenetinsight manifests/helm/kubenetinsight
+--namespace kube-system --create-namespace
+--set image.pullPolicy=Never
+```
+
+### Verify
+
+```
+kubectl get daemonset,service -n kube-system -l app.kubernetes.io/name=kubenetinsight
+kubectl port-forward svc/kubenetinsight-metrics 8080:8080 -n kube-system
+curl localhost:8080/metrics
+```
+
 ## Features
 
 ### eBPF Network Monitoring
@@ -63,22 +93,34 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 - Kubernetes cluster (tested with Minikube)
 - Go 1.23
 - clang and LLVM for eBPF compilation
+- Helm 3 
 - Prometheus and Grafana for metrics visualization
 
 ## Project Structure
 ```
 .
-├── cmd/kubenetinsight/     # Main application entry point
+├── cmd/kubenetinsight/         # Main application entry point and network monitoring logic
+├── ebpf/                       # XDP/eBPF C program source
+├── manifests/                  # Helm chart for deployment
+│   ├── helm/
+│   │    └── kubenetinsight/
+│   │        ├── Chart.yaml
+│   │        ├── values.yaml
+│   │        └── templates/     # DaemonSet, RBAC, Service, ConfigMap, Prometheus config
 ├── pkg/
-│   ├── ebpf/              # eBPF program and collector
-│   ├── kubernetes/        # Kubernetes client integration
-│   └── metrics/           # Prometheus metrics exporter
-├── manifests/
-│   └── monitoring/        # Kubernetes deployment manifests
-│       ├── grafana/       # Grafana configuration
-│       └── prometheus/    # Prometheus configuration
-└── scripts/               # Build and deployment scripts
+│   ├── ebpf/                   # eBPF program and collector
+│   ├── kubernetes/             # Kubernetes client integration
+│   └── metrics/                # Prometheus metrics exporter
+├── scripts/                    # Build and deployment scripts for testing/dev
+│   └── build.sh
+├── Makefile                    # Build, Docker, and Helm automation
+├── Dockerfile                  # Secure multi-stage container build
+└──  .dockerignore              # Exclude unneeded files from Docker context
 ```
+
+## Usage
+- `make deploy` to build image in Minikube and deploy via Helm  
+- `make clean` to remove local build artifacts 
 
 ## Current Status
 The project now features a robust metrics implementation with comprehensive Prometheus and Grafana integration. Key improvements include histogram-based latency tracking, packet size distribution metrics, and detailed protocol-specific monitoring. The system provides rich insights into cluster networking through consolidated statistics and enhanced Kubernetes resource correlation. The latest implementation includes detailed connection tracking with proper endianness handling and visualization capabilities through custom Grafana dashboards.

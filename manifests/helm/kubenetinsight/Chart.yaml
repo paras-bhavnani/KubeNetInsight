@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kubenetinsight
+description: Enterprise-grade Kubernetes network monitoring with eBPF
+type: application
+version: 1.0.0
+appVersion: 1.0.0

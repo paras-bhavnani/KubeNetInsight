@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cilium/ebpf/rlimit"
+
 	"github.com/paras-bhavnani/KubeNetInsight/pkg/ebpf"
 	"github.com/paras-bhavnani/KubeNetInsight/pkg/kubernetes"
 	"github.com/paras-bhavnani/KubeNetInsight/pkg/metrics"
@@ -16,6 +18,11 @@ import (
 
 func main() {
 	log.Println("Starting KubeNetInsight...")
+
+	// Remove the default memlock limit so we can load eBPF maps/programs
+	if err := rlimit.RemoveMemlock(); err != nil {
+		log.Fatalf("failed to remove memlock rlimit: %v", err)
+	}
 
 	// Initialize eBPF collector
 	collector, err := ebpf.NewCollector()

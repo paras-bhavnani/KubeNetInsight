@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubenetinsight-config
+  namespace: {{ .Release.Namespace }}
+data:
+  config.yaml: |
+    # Example configuration
+    interface: eth0
+    poll_interval: 5s
+    metrics_port: {{ .Values.metrics.port | default 8080 }}
+    log_level: info
+    kubernetes_namespace: kube-system

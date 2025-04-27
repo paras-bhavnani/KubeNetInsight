@@ -1,0 +1,41 @@
+# Source control
+.git
+.gitignore
+
+# Node, Python, and Go build artifacts
+node_modules
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+*.pyo
+*.pyd
+bin/
+dist/
+build/
+*.egg-info
+coverage.out
+test-results/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Editor/OS files
+.DS_Store
+Thumbs.db
+
+# Docker & Kubernetes files not needed in build
+*.tar
+*.gz
+*.zip
+
+# Large datasets or local cache (add more as needed)
+data/
+datasets/
+.cache/
+output/
+results/
+
+kubenetinsight_env/
