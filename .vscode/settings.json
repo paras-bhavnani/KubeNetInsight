@@ -2,5 +2,11 @@
     "files.associations": {
         "libbpf.h": "c",
         "bpf_helpers.h": "c"
+    },
+    "github.copilot.enable": {
+        "*": true,
+        "plaintext": false,
+        "markdown": true,
+        "scminput": false
     }
 }

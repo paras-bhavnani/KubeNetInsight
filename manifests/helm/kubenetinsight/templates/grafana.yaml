@@ -1,0 +1,59 @@
+{{- if .Values.monitoring.grafana.enabled }}
+# 1) Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-grafana-credentials
+  namespace: monitoring
+type: Opaque
+stringData:
+  admin-user: {{ .Values.monitoring.grafana.adminUser }}
+  admin-password: {{ .Values.monitoring.grafana.adminPassword }}
+
+---
+# 2) Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-grafana
+  namespace: monitoring
+  labels: { app: grafana }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: grafana }
+  template:
+    metadata:
+      labels: { app: grafana }
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana-oss
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-grafana-credentials
+              key: admin-user
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-grafana-credentials
+              key: admin-password
+        ports: [{ containerPort: 3000 }]
+        resources:
+          limits:   {{ toYaml .Values.monitoring.grafana.resources.limits   | nindent 12 }}
+          requests: {{ toYaml .Values.monitoring.grafana.resources.requests | nindent 12 }}
+
+---
+# 3) Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-grafana
+  namespace: monitoring
+spec:
+  selector: { app: grafana }
+  type: NodePort
+  ports: [{ port: 3000, targetPort: 3000 }]
+{{- end }}

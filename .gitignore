@@ -5,6 +5,8 @@
 *.so 
 *.dylib 
 *.pyc
+*.tgz
+*.lock
 
 bin/
 kubenetinsight_env/

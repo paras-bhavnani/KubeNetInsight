@@ -12,21 +12,20 @@ A real-time network monitoring solution for Kubernetes clusters using eBPF techn
 
 ### Deploy with Helm
 
-```
-Build and deploy locally in Minikube
+```bash
+# Build and deploy locally in Minikube
 make deploy
 
-or manually:
+# Or manually:
 eval $(minikube docker-env)
 docker build -t kubenetinsight:latest .
-helm upgrade --install kubenetinsight manifests/helm/kubenetinsight
---namespace kube-system --create-namespace
---set image.pullPolicy=Never
+helm upgrade --install kubenetinsight manifests/helm/kubenetinsight \
+    --namespace kube-system --create-namespace
 ```
 
 ### Verify
 
-```
+```bash
 kubectl get daemonset,service -n kube-system -l app.kubernetes.io/name=kubenetinsight
 kubectl port-forward svc/kubenetinsight-metrics 8080:8080 -n kube-system
 curl localhost:8080/metrics
@@ -97,7 +96,8 @@ curl localhost:8080/metrics
 - Prometheus and Grafana for metrics visualization
 
 ## Project Structure
-```
+
+```tree
 .
 ├── cmd/kubenetinsight/         # Main application entry point and network monitoring logic
 ├── ebpf/                       # XDP/eBPF C program source

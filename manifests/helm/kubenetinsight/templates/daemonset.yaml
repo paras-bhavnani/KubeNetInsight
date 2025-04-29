@@ -14,10 +14,9 @@ spec:
         prometheus.io/scrape: "true"  # Annotation-based discovery
         prometheus.io/port: "8080"
     spec:
-      serviceAccountName: {{ .Release.Name }}-sa
+      serviceAccountName: {{ .Release.Name }}-ebpf-sa
       hostNetwork: true
       hostPID: true
-      hostNetwork: true
       volumes:
         - name: sys
           hostPath:

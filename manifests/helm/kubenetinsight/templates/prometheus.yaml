@@ -1,0 +1,74 @@
+{{- if .Values.monitoring.prometheus.enabled }}
+
+# 1) ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: kubenetinsight
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces: 
+              names: [kube-system]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__address__]
+            action: drop
+            regex: .*:53$
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: (.+)(:\d+);(\d+)
+            replacement: $1:$3
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: kubernetes_namespace
+
+---
+# 2) Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-prometheus
+  namespace: monitoring
+  labels: { app: prometheus }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: prometheus }
+  template:
+    metadata:
+      labels: { app: prometheus }
+    spec:
+      serviceAccountName: {{ .Release.Name }}-prometheus-sa
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.43.0
+        args: ["--config.file=/etc/prometheus/prometheus.yml"]
+        ports: [{ containerPort: 9090 }]
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-prometheus-config
+
+---
+# 3) Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-prometheus
+  namespace: monitoring
+spec:
+  selector: { app: prometheus }
+  ports: [{ port: 9090, targetPort: 9090 }]
+{{- end }}

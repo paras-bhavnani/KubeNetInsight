@@ -8,6 +8,6 @@ data:
     # Example configuration
     interface: eth0
     poll_interval: 5s
-    metrics_port: {{ .Values.metrics.port | default 8080 }}
+    metrics_port: {{ default 8080 .Values.metrics.port }}
     log_level: info
     kubernetes_namespace: kube-system

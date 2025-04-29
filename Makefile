@@ -61,6 +61,7 @@ deploy: #docker-build helm-package
 	docker build -t $(IMAGE_NAME):$(TAG) .
 	helm upgrade --install kubenetinsight $(HELM_CHART_DIR) \
 		--namespace kube-system \
+		--create-namespace \
 		--set image.repository=$(IMAGE_NAME) \
 		--set image.tag=$(TAG)
 

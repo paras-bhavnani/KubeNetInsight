@@ -1,10 +1,15 @@
+# metrics-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-metrics
   namespace: {{ .Release.Namespace }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
 spec:
-  selector: {{- include "kubenetinsight.selectorLabels" . | nindent 4 }}
+  selector:
+    app.kubernetes.io/name: {{ .Release.Name }}
   ports:
     - name: metrics
       port: 8080

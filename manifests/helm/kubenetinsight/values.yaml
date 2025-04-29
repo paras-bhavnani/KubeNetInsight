@@ -4,16 +4,27 @@ image:
   tag: latest        # or your timestamp tag
   pullPolicy: Never
 
-# Disable subcharts
-prometheus:
-  enabled: false  # Disable Prometheus operator
-grafana:
-  enabled: false  # Disable Grafana if using your own
+# enable entire monitoring stack
+monitoring:
+  enabled: true
 
-# Configure your own metrics endpoint
+  prometheus:
+    enabled: true
+
+  grafana:
+    enabled: true
+    adminUser: admin
+    adminPassword: strongpassword123
+    resources:
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+
 metrics:
-  port: 8080  # Must match code
-  serviceName: kubenetinsight-metrics
+  port: 8080
 
 # Resource limits
 resources:
@@ -24,17 +35,18 @@ resources:
     cpu: 100m
     memory: 128Mi
 
-# values.yaml
-# Add this section
 rbac:
   create: true
   rules:
     - apiGroups: [""]
-      resources: ["pods", "services", "namespaces", "endpoints"]
+      resources: ["pods", "services", "namespaces", "endpoints", "nodes"]
       verbs: ["get", "list", "watch"]
     - apiGroups: ["networking.k8s.io"]
       resources: ["networkpolicies"]
       verbs: ["get", "list"]
+    - apiGroups: [""]
+      resources: ["nodes/proxy"]
+      verbs: ["get"]
 
 daemonset:
   securityContext:
